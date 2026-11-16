@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PackSmith - combine Minecraft texture packs</title>
+<meta name="description" content="Drop in several Minecraft texture packs, swap same-name textures between them, and export one combined pack.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%236ee7a0'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true"></div>
+    <div class="brand-text">
+      <h1>Pack<span>Smith</span></h1>
+      <p>merge texture packs into one</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <input id="packInput" type="file" accept=".zip,application/zip" multiple hidden>
+    <button class="btn btn-ghost" id="importBtn" type="button">Import packs</button>
+    <button class="btn btn-primary" id="exportBtn" type="button" disabled>Export .zip</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <aside class="panel panel-packs">
+    <div class="panel-head">
+      <h2>Packs</h2>
+      <span class="count" id="packCount">0</span>
+    </div>
+    <p class="panel-note">Pick a base pack with its icon. Swaps only work between files with the <b>same file name</b>, so nothing gets mismatched. Packs and swaps are saved in this browser.</p>
+    <ul class="pack-list" id="packList"></ul>
+  </aside>
+
+  <section class="panel panel-grid">
+    <div class="toolbar">
+      <div class="toolbar-top">
+        <label class="search">
+          <input id="itemSearch" type="search" placeholder="Search items... sword, oak_planks, creeper" autocomplete="off" spellcheck="false">
+          <kbd>/</kbd>
+        </label>
+        <label class="check"><input type="checkbox" id="onlyChanged"> swapped only</label>
+        <button class="btn btn-sm btn-ghost" id="resetSwaps" type="button" disabled>Reset</button>
+        <span class="count" id="itemCount"></span>
+      </div>
+      <div class="filter-line">
+        <span class="filter-label">Category</span>
+        <div class="chips" id="categoryChips"></div>
+      </div>
+      <div class="filter-line" id="quickLine">
+        <span class="filter-label">Type</span>
+        <div class="chips" id="quickChips"></div>
+      </div>
+    </div>
+    <div class="grid-body">
+      <div class="item-grid" id="itemGrid"></div>
+      <div class="empty-state" id="gridEmpty">
+        <div class="empty-inner" id="emptyStart">
+          <div class="empty-icon" aria-hidden="true"><span>+</span></div>
+          <h2>Drop texture packs here</h2>
+          <p>Import two or more Java Edition <code>.zip</code> packs. Pick a base, then filter down to blocks, items or swords, select the textures you want, and swap them in. One pack out, no mismatched files.</p>
+          <div class="row">
+            <button class="btn btn-primary" id="emptyImport" type="button">Import .zip packs</button>
+          </div>
+          <p class="tiny">Everything runs in your browser. Nothing is uploaded anywhere, and packs stay saved on this device.</p>
+        </div>
+        <div class="empty-inner" id="emptyNoMatch" hidden>
+          <h2>Nothing matches</h2>
+          <p id="emptyNoMatchText">Try a different search.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel panel-palette">
+    <div class="panel-head">
+      <h2>Texture library</h2>
+      <span class="count" id="paletteTotal"></span>
+    </div>
+    <div class="source-tabs" id="sourceTabs"></div>
+    <div class="library-tools">
+      <label class="search search-sm">
+        <input id="paletteSearch" type="search" placeholder="Search textures..." autocomplete="off" spellcheck="false">
+      </label>
+      <select id="paletteCategory" class="select" aria-label="Filter library by category"></select>
+    </div>
+    <div class="palette-grid" id="paletteGrid"></div>
+    <div class="selection-bar">
+      <div class="selection-top">
+        <span id="selectionInfo">Click textures to select</span>
+        <button class="link-btn" id="clearSelection" type="button" hidden>Clear</button>
+      </div>
+      <div class="selection-actions">
+        <button class="btn btn-sm btn-ghost" id="selectAll" type="button">Select all</button>
+        <button class="btn btn-sm btn-primary" id="applyMatches" type="button" disabled>Swap matching</button>
+      </div>
+    </div>
+  </aside>
+
+</main>
+
+<div class="drop-overlay" id="dropOverlay" hidden>
+  <div class="drop-box">
+    <p class="drop-big">Drop .zip packs</p>
+    <p>Java Edition texture packs</p>
+  </div>
+</div>
+
+<div class="modal" id="exportModal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+    <h2 id="exTitle">Export merged pack</h2>
+    <p class="modal-note">Every file from <b id="exBase">-</b> gets copied, then your swapped textures are written over the top.</p>
+    <label class="field"><span>Pack name</span><input id="exName" type="text" value="Merged Pack" maxlength="60" spellcheck="false"></label>
+    <label class="field"><span>pack_format</span><input id="exFormat" type="number" min="1" max="99" value="15"></label>
+    <p class="modal-note tiny" id="exStats"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" id="exGo" type="button">Build .zip</button>
+    </div>
+  </div>
+</div>
+
+<div class="busy" id="busy" hidden>
+  <div class="busy-card">
+    <p id="busyLabel">Working...</p>
+    <div class="bar"><i id="busyBar" class="indet"></i></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
